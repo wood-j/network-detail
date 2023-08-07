@@ -2,7 +2,10 @@
 
 A simple command line tool to monitor network workload of linux server.
 
-And save history data to `sqlite3` file `network_detail.db`.
+Main logic:
+
+1. Use command `iftop` to capture network detail each 2 seconds
+2. Parse command output and save history data to `sqlite3` file `network_detail.db`.
 
 ## 1.1. env
 
