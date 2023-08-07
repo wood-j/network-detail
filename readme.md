@@ -24,7 +24,7 @@ go mod tidy
 Use following command to compile binary exec.
 
 ```bash
-go build ./network_detail.go
+CGO_ENABLED=1 go build -a -ldflags '-extldflags "-static"' ./network_detail.go
 ```
 
 ## 1.3. run
