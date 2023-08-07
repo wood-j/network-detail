@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -26,22 +27,47 @@ func runIftop(device_name string) string {
 }
 
 func getDB() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "./network_detail.db")
+	now := time.Now().Format("2006-01-02")
+	_, err := os.Stat(now)
+	if os.IsNotExist(err) {
+		fmt.Println("Create folder: ", now)
+		err := os.Mkdir(now, 0755)
+		if err != nil {
+			fmt.Println("Create folder failed" + err.Error())
+			return nil, err
+		}
+	}
+	//
+	db_file_path := now + "/network_detail.db"
+	db, err := sql.Open("sqlite3", db_file_path)
 	if err != nil {
 		fmt.Println("Open database error：", err)
 		return nil, err
+	}
+	//
+	if !checkTableExists(db) {
+		err = createTable(db)
+		if err != nil {
+			return nil, err
+		}
 	}
 	// defer db.Close()
 	return db, nil
 }
 
-func createTable() error {
-	db, err := getDB()
+func checkTableExists(db *sql.DB) bool {
+	query := "SELECT name FROM sqlite_master WHERE type='table' AND name='network_detail'"
+	rows, err := db.Query(query)
 	if err != nil {
-		return err
+		fmt.Println("Query table name error:", err)
+		return false
 	}
-	defer db.Close()
+	defer rows.Close()
 	//
+	return rows.Next()
+}
+
+func createTable(db *sql.DB) error {
 	createTableSQL := `
 		CREATE TABLE IF NOT EXISTS network_detail (
 			id INTEGER PRIMARY KEY,
@@ -54,7 +80,7 @@ func createTable() error {
 			time VARCHAR(32)
 		);
 	`
-	_, err = db.Exec(createTableSQL)
+	_, err := db.Exec(createTableSQL)
 	if err != nil {
 		fmt.Println("Table create error：", err)
 		return err
@@ -128,11 +154,6 @@ func main() {
 	var device string
 	flag.StringVar(&device, "i", "enp3s0", "device interface name")
 	flag.Parse()
-	// Create database and table
-	err := createTable()
-	if err != nil {
-		return
-	}
 	// Run loop
 	for {
 		text := runIftop(device)
